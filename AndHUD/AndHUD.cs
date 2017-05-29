@@ -32,7 +32,8 @@ namespace AndroidHUD
 
 		ProgressWheel progressWheel = null;
 		TextView statusText = null;
-		ImageView imageView = null;
+	    TextView cancelText = null;
+        ImageView imageView = null;
 
 		object statusObj = null;
 
@@ -112,8 +113,8 @@ namespace AndroidHUD
 						statusObj = new object();
 
 						statusText = view.FindViewById<TextView>(Resource.Id.textViewStatus);
-
-						if (!spinner)
+					    
+                        if (!spinner)
 							view.FindViewById<ProgressBar>(Resource.Id.loadingProgressBar).Visibility = ViewStates.Gone;
 
 						if (maskType != MaskType.Black)
@@ -125,7 +126,14 @@ namespace AndroidHUD
 							statusText.Visibility = string.IsNullOrEmpty(status) ? ViewStates.Gone : ViewStates.Visible;
 						}
 
-						if (!centered)
+					    cancelText = view.FindViewById<TextView>(Resource.Id.cancelText);
+					    if (cancelText != null)
+					    {
+					        cancelText.Visibility = cancelCallback != null ? ViewStates.Visible : ViewStates.Gone;
+					        cancelText.Click += (sender, e) => cancelCallback();
+					    }
+
+					    if (!centered)
 						{
 							d.Window.SetGravity (GravityFlags.Bottom);
 							var p = d.Window.Attributes;
@@ -203,7 +211,14 @@ namespace AndroidHUD
 							statusText.Visibility = string.IsNullOrEmpty(status) ? ViewStates.Gone : ViewStates.Visible;
 						}
 
-						return view;
+					    cancelText = view.FindViewById<TextView>(Resource.Id.cancelText);
+					    if (cancelText != null)
+					    {
+					        cancelText.Visibility = cancelCallback != null ? ViewStates.Visible : ViewStates.Gone;
+					        cancelText.Click += (sender, e) => cancelCallback();
+					    }
+
+                        return view;
 					});
 
 					if (timeout.Value > TimeSpan.Zero)
@@ -264,7 +279,14 @@ namespace AndroidHUD
 							statusText.Visibility = string.IsNullOrEmpty(status) ? ViewStates.Gone : ViewStates.Visible;
 						}
 
-						return view;
+					    cancelText = view.FindViewById<TextView>(Resource.Id.cancelText);
+					    if (cancelText != null)
+					    {
+					        cancelText.Visibility = cancelCallback != null ? ViewStates.Visible : ViewStates.Gone;
+					        cancelText.Click += (sender, e) => cancelCallback();
+					    }
+
+                        return view;
 					});
 
 					if (timeout > TimeSpan.Zero)
@@ -295,9 +317,14 @@ namespace AndroidHUD
 
 		void SetupDialog(Context context, MaskType maskType, Action cancelCallback, Func<Context, Dialog, MaskType, View> customSetup)
 		{
-			Application.SynchronizationContext.Send(state => {
+			Application.SynchronizationContext.Send(state =>
+			{
+			    StatusBarVisibility? windowFlags = null;
+			    var activity = context as Activity;
+			    if(activity != null)
+                    windowFlags = activity.Window.DecorView.SystemUiVisibility;
 
-				CurrentDialog = new Dialog(context);
+                CurrentDialog = new Dialog(context);
 
 				CurrentDialog.RequestWindowFeature((int)WindowFeatures.NoTitle);
 
@@ -307,7 +334,12 @@ namespace AndroidHUD
 				if (maskType == MaskType.None)
 					CurrentDialog.Window.SetFlags(WindowManagerFlags.NotTouchModal, WindowManagerFlags.NotTouchModal);
 
-				CurrentDialog.Window.SetBackgroundDrawable(new Android.Graphics.Drawables.ColorDrawable(Android.Graphics.Color.Transparent));
+			    if (windowFlags.HasValue)
+			    {
+			        CurrentDialog.Window.DecorView.SystemUiVisibility = windowFlags.Value;
+			    }
+
+			    CurrentDialog.Window.SetBackgroundDrawable(new Android.Graphics.Drawables.ColorDrawable(Android.Graphics.Color.Transparent));
 
 				var customView = customSetup(context, CurrentDialog, maskType);
 
@@ -316,6 +348,7 @@ namespace AndroidHUD
 				CurrentDialog.SetCancelable (cancelCallback != null);	
 				if (cancelCallback != null)
 					CurrentDialog.CancelEvent += (sender, e) => cancelCallback();
+                CurrentDialog.SetCanceledOnTouchOutside(false);
 
 				CurrentDialog.Show ();
 
